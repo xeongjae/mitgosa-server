@@ -14,13 +14,15 @@ const crawlMusinsaReviews = async (url) => {
       headless: chromium.headless,
     });
     const page = await browser.newPage();
+    await page.setViewport({ width: 1280, height: 800 });
     await page.setUserAgent(
       "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
     );
 
     console.log(`페이지로 이동: ${url}`);
     await page.goto(url, { waitUntil: "domcontentloaded", timeout: 60000 });
-    console.log("페이지 로드 완료");
+    console.log("페이지 로드 완료, 콘텐츠 로딩 대기...");
+    await new Promise((resolve) => setTimeout(resolve, 2000)); // 2초 대기
 
     // 상품 정보 크롤링 (리뷰 전체보기 버튼 누르기 전)
     const product = await page.evaluate(() => {
@@ -62,7 +64,8 @@ const crawlMusinsaReviews = async (url) => {
     console.log("상품 정보:", product);
 
     await page.waitForSelector(".review-list-item__Container-sc-13zantg-0", {
-      timeout: 30000,
+      timeout: 60000,
+      visible: true,
     });
 
     // 전체 보기 버튼 확인 및 클릭
