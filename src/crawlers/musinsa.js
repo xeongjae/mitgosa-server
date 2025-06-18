@@ -24,8 +24,20 @@ const crawlMusinsaReviews = async (url) => {
     });
 
     console.log(`페이지로 이동: ${url}`);
-    await page.goto(url, { waitUntil: "networkidle2", timeout: 60000 });
-    console.log("페이지 로드 완료.");
+    await page.goto(url, { waitUntil: "domcontentloaded", timeout: 90000 });
+    console.log("페이지 기본 로드 완료. 핵심 콘텐츠를 기다립니다...");
+
+    // 상품명과 리뷰 리스트가 모두 로드될 때까지 명시적으로 대기
+    await page.waitForSelector(
+      ".text-title_18px_med.sc-1omefes-1.exqQRL.font-pretendard",
+      { timeout: 60000 }
+    );
+    console.log("상품 정보 로드 확인.");
+    await page.waitForSelector(".review-list-item__Container-sc-13zantg-0", {
+      timeout: 60000,
+      visible: true,
+    });
+    console.log("리뷰 목록 로드 확인.");
 
     // 상품 정보 추출 (요청하신 대로 원래의 선택자로 복원)
     const product = await page.evaluate((url) => {
