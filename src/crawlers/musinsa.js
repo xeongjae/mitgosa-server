@@ -19,7 +19,7 @@ const crawlMusinsaReviews = async (url) => {
     );
 
     console.log(`페이지로 이동: ${url}`);
-    await page.goto(url, { waitUntil: "networkidle2" });
+    await page.goto(url, { waitUntil: "domcontentloaded", timeout: 60000 });
     console.log("페이지 로드 완료");
 
     // 상품 정보 크롤링 (리뷰 전체보기 버튼 누르기 전)
