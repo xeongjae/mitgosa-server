@@ -12,6 +12,7 @@ const crawlMusinsaReviews = async (url) => {
       defaultViewport: chromium.defaultViewport,
       executablePath: await chromium.executablePath(),
       headless: chromium.headless,
+      protocolTimeout: 300000, // 프로토콜 타임아웃 5분으로 연장
     });
 
     const page = await browser.newPage();
@@ -313,36 +314,14 @@ async function loadAllReviewsByScroll(page) {
       }
     }
 
-    // 스크롤 실행
-    try {
-      // 방법 1: END키 (25% 비중)
-      if (scrollAttempts % 4 === 0) {
-        await page.keyboard.press("End");
-        await new Promise((resolve) => setTimeout(resolve, 50));
-      }
-      // 방법 2: PAGE_DOWN 연발 (75% 비중)
-      else {
-        // 한번에 6번 연속 PAGE_DOWN (4번 → 6번)
-        for (let i = 0; i < 6; i++) {
-          await page.keyboard.press("PageDown");
-          await new Promise((resolve) => setTimeout(resolve, 30)); // 50ms → 30ms
-        }
+    // 스크롤 실행 (키보드 대신 JS 사용으로 안정성 향상)
+    await page.evaluate(() => {
+      window.scrollTo(0, document.body.scrollHeight);
+    });
 
-        // 새 리뷰가 없으면 바로 END키 추가
-        if (stableCount >= 1) {
-          await page.keyboard.press("End");
-        }
-      }
-    } catch (keyError) {
-      console.log("키보드 오류, 폴백 사용");
-      await page.evaluate(() => {
-        window.scrollBy(0, 8000); // 5000 → 8000
-        window.scrollTo(0, document.body.scrollHeight);
-      });
-    }
-
-    // 최소 대기시간
-    const waitTime = stableCount >= 1 ? 50 : 100; // 100/200ms → 50/100ms
+    // 네트워크 및 렌더링을 위한 대기 시간.
+    // 새 리뷰가 없을수록 더 길게 대기하여 마지막 기회를 줌.
+    const waitTime = 500 + stableCount * 500;
     await new Promise((resolve) => setTimeout(resolve, waitTime));
 
     scrollAttempts++;
