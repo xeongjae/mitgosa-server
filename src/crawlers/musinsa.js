@@ -1,21 +1,29 @@
-const puppeteer = require("puppeteer");
+const chromium = require("@sparticuz/chromium");
+const puppeteer = require("puppeteer-extra");
+const StealthPlugin = require("puppeteer-extra-plugin-stealth");
+puppeteer.use(StealthPlugin());
 
-async function crawlMusinsaReviews(url) {
+const crawlMusinsaReviews = async (url) => {
   let browser;
   try {
-    browser = await puppeteer.launch({ headless: false });
-    const page = await browser.newPage();
-    await page.setUserAgent(
-      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
-    );
-    await page.setExtraHTTPHeaders({
-      "Accept-Language": "ko-KR,ko;q=0.8,en-US;q=0.5,en;q=0.3",
+    console.log("크롤러 시작...");
+    browser = await puppeteer.launch({
+      args: chromium.args,
+      defaultViewport: chromium.defaultViewport,
+      executablePath: await chromium.executablePath(),
+      headless: chromium.headless,
     });
 
-    await page.goto(url, { waitUntil: "networkidle2" });
+    const page = await browser.newPage();
+    await page.setViewport({ width: 1280, height: 800 });
+    await page.setUserAgent(
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+    );
 
+    console.log(`페이지로 이동: ${url}`);
+    await page.goto(url, { waitUntil: "domcontentloaded", timeout: 60000 });
     console.log("페이지 로드 완료, 콘텐츠 로딩 대기...");
-    await new Promise((resolve) => setTimeout(resolve, 5000)); // 5초 대기
+    await new Promise((resolve) => setTimeout(resolve, 5000)); // 요청하신 5초 대기
 
     // 상품 정보 추출 (요청하신 대로 원래의 선택자로 복원)
     const product = await page.evaluate((url) => {
@@ -52,7 +60,8 @@ async function crawlMusinsaReviews(url) {
     console.log("상품 정보:", product);
 
     await page.waitForSelector(".review-list-item__Container-sc-13zantg-0", {
-      timeout: 30000,
+      timeout: 60000,
+      visible: true,
     });
 
     // 전체 보기 버튼 확인 및 클릭
@@ -115,7 +124,8 @@ async function crawlMusinsaReviews(url) {
           await targetPage.waitForSelector(
             ".review-list-item__Container-sc-13zantg-0",
             {
-              timeout: 30000,
+              timeout: 60000,
+              visible: true,
             }
           );
 
@@ -221,11 +231,11 @@ async function crawlMusinsaReviews(url) {
     return { product: product, reviews: reviewContents };
   } catch (err) {
     console.error("무신사 리뷰 크롤링 에러:", err.message);
-    return { product: product, reviews: [] };
+    return { product: { name: "상품 정보 로딩 실패" }, reviews: [] };
   } finally {
     if (browser) await browser.close();
   }
-}
+};
 
 // 무한스크롤로 모든 리뷰 로딩하는 함수 (가상 스크롤링 대응)
 async function loadAllReviewsByScroll(page) {
