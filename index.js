@@ -1,8 +1,8 @@
 const express = require("express");
 const cors = require("cors");
 const app = express();
-const crawlMusinsaReviews = require("./crawlers/musinsa");
-const { analyzeReviews } = require("./analyzers/geminiAnalyzer");
+const crawlMusinsaReviews = require("./src/crawlers/musinsa");
+const { analyzeReviews } = require("./src/analyzers/geminiAnalyzer");
 require("dotenv").config();
 
 app.use(express.json());

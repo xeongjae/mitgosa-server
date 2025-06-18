@@ -15,7 +15,7 @@ async function crawlMusinsaReviews(url) {
     await page.goto(url, { waitUntil: "networkidle2" });
 
     // 상품 정보 크롤링 (리뷰 전체보기 버튼 누르기 전)
-    const productInfo = await page.evaluate((url) => {
+    const productInfo = await page.evaluate(() => {
       // 대표 이미지
       const image =
         document.querySelector('.sc-366fl4-3.cRHyEE img[alt="Thumbnail 0"]')
@@ -42,8 +42,9 @@ async function crawlMusinsaReviews(url) {
           )
           ?.textContent?.trim() || "";
 
-      return { name, brand, price, image, url };
-    }, url);
+      const URL = url;
+      return { name, brand, price, image, URL };
+    });
 
     await page.waitForSelector(".review-list-item__Container-sc-13zantg-0", {
       timeout: 30000,
