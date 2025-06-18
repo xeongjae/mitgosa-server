@@ -1,18 +1,32 @@
-const puppeteer = require("puppeteer");
+const puppeteer = require("puppeteer-extra");
+const StealthPlugin = require("puppeteer-extra-plugin-stealth");
+puppeteer.use(StealthPlugin());
 
-async function crawlMusinsaReviews(url) {
+const crawlMusinsaReviews = async (url) => {
   let browser;
   try {
-    browser = await puppeteer.launch({ headless: false });
+    console.log("크롤러 시작...");
+    browser = await puppeteer.launch({
+      headless: true,
+      args: [
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-dev-shm-usage",
+        "--disable-accelerated-2d-canvas",
+        "--no-zygote",
+        "--single-process",
+        "--disable-gpu",
+      ],
+      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH,
+    });
     const page = await browser.newPage();
     await page.setUserAgent(
-      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
     );
-    await page.setExtraHTTPHeaders({
-      "Accept-Language": "ko-KR,ko;q=0.8,en-US;q=0.5,en;q=0.3",
-    });
 
+    console.log(`페이지로 이동: ${url}`);
     await page.goto(url, { waitUntil: "networkidle2" });
+    console.log("페이지 로드 완료");
 
     // 상품 정보 크롤링 (리뷰 전체보기 버튼 누르기 전)
     const productInfo = await page.evaluate(() => {
@@ -42,9 +56,16 @@ async function crawlMusinsaReviews(url) {
           )
           ?.textContent?.trim() || "";
 
-      const URL = url;
-      return { name, brand, price, image, URL };
+      // 'productInfo'가 아니라 'product' 객체로 바로 반환
+      return {
+        brand,
+        name,
+        price,
+        image,
+      };
     });
+
+    console.log("상품 정보:", product);
 
     await page.waitForSelector(".review-list-item__Container-sc-13zantg-0", {
       timeout: 30000,
@@ -123,7 +144,7 @@ async function crawlMusinsaReviews(url) {
             console.log(
               `스크롤 과정에서 수집된 리뷰: ${scrolledReviews.length}개`
             );
-            return { product: productInfo, reviews: scrolledReviews };
+            return { product, reviews: scrolledReviews };
           }
         } else {
           // 같은 페이지에서 내용이 바뀌었는지 확인
@@ -144,7 +165,7 @@ async function crawlMusinsaReviews(url) {
               console.log(
                 `스크롤 과정에서 수집된 리뷰: ${scrolledReviews.length}개`
               );
-              return { product: productInfo, reviews: scrolledReviews };
+              return { product, reviews: scrolledReviews };
             }
           }
         }
@@ -178,7 +199,7 @@ async function crawlMusinsaReviews(url) {
         });
 
         console.log(`최종 수집 완료: ${reviewContents.length}개의 리뷰`);
-        return { product: productInfo, reviews: reviewContents };
+        return { product, reviews: reviewContents };
       } else {
         console.log("전체보기 버튼 없음");
       }
@@ -213,14 +234,17 @@ async function crawlMusinsaReviews(url) {
     });
 
     console.log(`최종 수집 완료: ${reviewContents.length}개의 리뷰`);
-    return { product: productInfo, reviews: reviewContents };
-  } catch (err) {
-    console.error("무신사 리뷰 크롤링 에러:", err.message);
-    return { product: productInfo, reviews: [] };
+    return { product, reviews: reviewContents };
+  } catch (error) {
+    console.error("무신사 리뷰 크롤링 에러:", error.message);
+    throw new Error(`크롤링 실패: ${error.message}`);
   } finally {
-    if (browser) await browser.close();
+    if (browser) {
+      await browser.close();
+      console.log("브라우저 종료됨");
+    }
   }
-}
+};
 
 // 무한스크롤로 모든 리뷰 로딩하는 함수 (가상 스크롤링 대응)
 async function loadAllReviewsByScroll(page) {
