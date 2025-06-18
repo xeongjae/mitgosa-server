@@ -17,13 +17,15 @@ const crawlMusinsaReviews = async (url) => {
     const page = await browser.newPage();
     await page.setViewport({ width: 1280, height: 800 });
     await page.setUserAgent(
-      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
     );
+    await page.setExtraHTTPHeaders({
+      "Accept-Language": "ko-KR,ko;q=0.8,en-US;q=0.5,en;q=0.3",
+    });
 
     console.log(`페이지로 이동: ${url}`);
-    await page.goto(url, { waitUntil: "domcontentloaded", timeout: 60000 });
-    console.log("페이지 로드 완료, 콘텐츠 로딩 대기...");
-    await new Promise((resolve) => setTimeout(resolve, 5000)); // 요청하신 5초 대기
+    await page.goto(url, { waitUntil: "networkidle2", timeout: 60000 });
+    console.log("페이지 로드 완료.");
 
     // 상품 정보 추출 (요청하신 대로 원래의 선택자로 복원)
     const product = await page.evaluate((url) => {
