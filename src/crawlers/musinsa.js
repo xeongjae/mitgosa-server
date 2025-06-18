@@ -1,3 +1,4 @@
+const chromium = require("@sparticuz/chromium");
 const puppeteer = require("puppeteer-extra");
 const StealthPlugin = require("puppeteer-extra-plugin-stealth");
 puppeteer.use(StealthPlugin());
@@ -7,17 +8,10 @@ const crawlMusinsaReviews = async (url) => {
   try {
     console.log("크롤러 시작...");
     browser = await puppeteer.launch({
-      headless: true,
-      args: [
-        "--no-sandbox",
-        "--disable-setuid-sandbox",
-        "--disable-dev-shm-usage",
-        "--disable-accelerated-2d-canvas",
-        "--no-zygote",
-        "--single-process",
-        "--disable-gpu",
-      ],
-      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH,
+      args: chromium.args,
+      defaultViewport: chromium.defaultViewport,
+      executablePath: await chromium.executablePath(),
+      headless: chromium.headless,
     });
     const page = await browser.newPage();
     await page.setUserAgent(
@@ -29,7 +23,7 @@ const crawlMusinsaReviews = async (url) => {
     console.log("페이지 로드 완료");
 
     // 상품 정보 크롤링 (리뷰 전체보기 버튼 누르기 전)
-    const productInfo = await page.evaluate(() => {
+    const product = await page.evaluate(() => {
       // 대표 이미지
       const image =
         document.querySelector('.sc-366fl4-3.cRHyEE img[alt="Thumbnail 0"]')
