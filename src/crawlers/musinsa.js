@@ -153,7 +153,7 @@ const crawlMusinsaReviews = async (url) => {
           await targetPage.waitForSelector(
             ".review-list-item__Container-sc-13zantg-0",
             {
-              timeout: 60000,
+              timeout: 30000,
               visible: true,
             }
           );
