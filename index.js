@@ -5,6 +5,25 @@ const crawlMusinsaReviews = require("./src/crawlers/musinsa");
 const { analyzeReviews } = require("./src/analyzers/geminiAnalyzer");
 require("dotenv").config();
 
+// 간단한 IP 기반 사용량 제한 (메모리 저장)
+const dailyUsageByIP = new Map();
+const DAILY_LIMIT_PER_IP = 10; // IP당 일일 10회 제한
+
+// 일일 사용량 확인 함수
+const getIPDailyUsage = (ip) => {
+  const today = new Date().toDateString();
+  const key = `${ip}-${today}`;
+  return dailyUsageByIP.get(key) || 0;
+};
+
+// 일일 사용량 증가 함수
+const incrementIPDailyUsage = (ip) => {
+  const today = new Date().toDateString();
+  const key = `${ip}-${today}`;
+  const currentUsage = dailyUsageByIP.get(key) || 0;
+  dailyUsageByIP.set(key, currentUsage + 1);
+};
+
 app.use(express.json());
 
 app.use(
@@ -49,7 +68,20 @@ app.post("/api/review", async (req, res) => {
 app.post("/api/analyze", async (req, res) => {
   console.log("분석 요청 들어옴!", req.body);
   try {
-    const url = req.body.url;
+    const { url } = req.body;
+    const clientIP =
+      req.ip || req.connection.remoteAddress || req.headers["x-forwarded-for"];
+
+    // IP 기반 사용량 제한 확인
+    const todayUsage = getIPDailyUsage(clientIP);
+    if (todayUsage >= DAILY_LIMIT_PER_IP) {
+      return res.status(429).json({
+        success: false,
+        message: `일일 사용량 제한(${DAILY_LIMIT_PER_IP}회)을 초과했습니다. 내일 다시 시도해주세요.`,
+        remainingUsage: 0,
+      });
+    }
+
     const apiKey = process.env.GEMINI_API_KEY;
 
     // API 키 확인
@@ -78,49 +110,21 @@ app.post("/api/analyze", async (req, res) => {
     }
     console.log(`${reviews.length}개의 리뷰를 찾았습니다.`);
 
-    // 크롤링한 리뷰 내용 출력
-    console.log("======= 크롤링한 리뷰 내용 =======");
-    reviews.forEach((review, index) => {
-      console.log(
-        `리뷰 ${index + 1}: ${review.substring(0, 100)}${
-          review.length > 100 ? "..." : ""
-        }`
-      );
-    });
-    console.log("================================");
+    // 사용량 증가
+    incrementIPDailyUsage(clientIP);
 
     // Gemini API로 리뷰 분석
     console.log("리뷰 분석 시작...");
     const analysis = await analyzeReviews(reviews, apiKey);
 
-    // 분석 결과 상세 출력
-    console.log("======= AI 분석 결과 상세 =======");
-    console.log(JSON.stringify(analysis, null, 2));
-
-    if (analysis.success && analysis.data) {
-      console.log("\n✅ 장점:");
-      analysis.data.pros.forEach((pro) => console.log(`  • ${pro}`));
-
-      console.log("\n❌ 단점:");
-      if (analysis.data.cons && analysis.data.cons.length > 0) {
-        analysis.data.cons.forEach((con) => console.log(`  • ${con}`));
-      } else {
-        console.log("  • 언급된 단점 없음");
-      }
-
-      if (analysis.data.overall_rating) {
-        console.log(`\n⭐ 평점: ${analysis.data.overall_rating}`);
-      }
-
-      console.log(`\n📝 요약: ${analysis.data.summary}`);
-      console.log(`\n🎯 추천 대상: ${analysis.data.recommendation}`);
-    }
-    console.log("================================");
-
     // 결과 반환
     res.json({
       ...analysis,
       product,
+      remainingUsage: Math.max(
+        0,
+        DAILY_LIMIT_PER_IP - getIPDailyUsage(clientIP)
+      ),
     });
   } catch (error) {
     console.error("분석 중 에러 발생:", error);
