@@ -1,4 +1,5 @@
 const puppeteer = require("puppeteer");
+const chromium = require("@sparticuz/chromium");
 const axios = require("axios");
 
 // URL에서 goodsNo를 추출
@@ -78,14 +79,29 @@ async function fetchReviewsFromAPI(goodsNo) {
 async function crawlMusinsaReviews(url) {
   let browser;
   try {
-    browser = await puppeteer.launch({
+    // Chrome 실행 파일 경로와 args 설정 (배포 환경 대응)
+    const isProduction =
+      process.env.NODE_ENV === "production" || process.env.RENDER;
+
+    let launchOptions = {
       headless: true,
       args: [
         "--no-sandbox",
         "--disable-setuid-sandbox",
         "--disable-dev-shm-usage",
+        "--disable-gpu",
+        "--disable-web-security",
+        "--disable-features=VizDisplayCompositor",
       ],
-    });
+    };
+
+    if (isProduction) {
+      // 배포 환경에서는 @sparticuz/chromium 사용
+      launchOptions.executablePath = await chromium.executablePath();
+      launchOptions.args = [...launchOptions.args, ...chromium.args];
+    }
+
+    browser = await puppeteer.launch(launchOptions);
     const page = await browser.newPage();
 
     // 속도 최적화: 불필요한 리소스 차단
