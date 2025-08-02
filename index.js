@@ -1,8 +1,8 @@
 const express = require("express");
 const cors = require("cors");
 const app = express();
-const crawlMusinsaReviews = require("./crawlers/musinsa");
-const { analyzeReviews } = require("./analyzers/geminiAnalyzer");
+const crawlMusinsaReviews = require("./src/crawlers/musinsa");
+const { analyzeReviews } = require("./src/analyzers/geminiAnalyzer");
 require("dotenv").config();
 
 // 간단한 IP 기반 사용량 제한 (메모리 저장)
@@ -28,7 +28,7 @@ app.use(express.json());
 
 app.use(
   cors({
-    origin: "http://localhost:5173",
+    origin: process.env.CORS_ORIGIN,
   })
 );
 

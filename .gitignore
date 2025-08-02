@@ -1,0 +1,30 @@
+# Node.js
+node_modules/
+
+# 환경 변수 및 민감 정보
+.env
+.env.*
+
+# 로그 파일
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# 운영체제별
+.DS_Store
+Thumbs.db
+
+# 기타
+coverage/
+dist/
+build/
+
+# IDE/에디터
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
