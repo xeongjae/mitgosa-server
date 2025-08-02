@@ -78,7 +78,27 @@ async function fetchReviewsFromAPI(goodsNo) {
 async function crawlMusinsaReviews(url) {
   let browser;
   try {
-    browser = await puppeteer.launch({ headless: true });
+    // Render 환경에 최적화된 Puppeteer 설정
+    const puppeteerOptions = {
+      headless: true,
+      args: [
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-dev-shm-usage",
+        "--disable-gpu",
+        "--no-first-run",
+        "--no-zygote",
+        "--single-process",
+      ],
+    };
+
+    // Chrome 경로 자동 감지 (Render 환경 대응)
+    if (process.env.NODE_ENV === "production") {
+      puppeteerOptions.executablePath =
+        "/opt/render/.cache/puppeteer/chrome/linux-*/chrome-linux*/chrome";
+    }
+
+    browser = await puppeteer.launch(puppeteerOptions);
     const page = await browser.newPage();
 
     // ========= 속도 최적화: 불필요한 리소스 차단 =========
