@@ -85,7 +85,7 @@ async function crawlMusinsaReviews(url) {
     await page.setRequestInterception(true);
     page.on("request", (req) => {
       if (
-        ["image", "stylesheet", "font", "media"].includes(req.resourceType())
+        ["font", "media", "websocket", "other"].includes(req.resourceType())
       ) {
         req.abort();
       } else {
