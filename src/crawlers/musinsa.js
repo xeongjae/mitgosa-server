@@ -76,9 +76,6 @@ async function fetchReviewsFromAPI(goodsNo) {
 }
 
 async function crawlMusinsaReviews(url) {
-  // Chrome 설치 확인
-  await ensureChromeInstalled();
-
   let browser;
   try {
     browser = await puppeteer.launch({
