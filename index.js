@@ -1,7 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 const app = express();
-const crawlMusinsaReviews = require("./src/crawlers/musinsa");
+const crawlMusinsa = require("./src/crawlers/musinsa");
 const { analyzeReviews } = require("./src/analyzers/geminiAnalyzer");
 require("dotenv").config();
 
@@ -21,35 +21,7 @@ app.get("/", (req, res) => {
   res.send("리뷰스캔 서버가 실행 중입니다!");
 });
 
-// 프론트에서 상품 url을 받아 무신사 리뷰를 크롤링하는 POST 엔드포인트
-app.post("/api/review", async (req, res) => {
-  console.log("요청 들어옴!", req.body);
-  try {
-    const url = req.body.url;
-
-    //유효성 검사
-    if (!url) {
-      return res.status(400).json({ success: false, message: "url 수신 실패" });
-    }
-
-    //무신사 리뷰 크롤링
-    let reviews = await crawlMusinsaReviews(url);
-    if (!reviews || reviews.length === 0) {
-      reviews = ["리뷰 데이터가 없습니다."];
-    }
-
-    //결과 반환
-    res.json({ success: true, message: reviews });
-  } catch (error) {
-    console.error("서버 에러 발생:", error);
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
-  }
-});
-
-// Gemini API를 사용하여 무신사 리뷰를 분석하는 POST 엔드포인트
+// 무신사 리뷰 크롤링 and Gemini API로 분석
 app.post("/api/analyze", async (req, res) => {
   console.log("분석 요청 들어옴!", req.body);
   try {
@@ -72,7 +44,7 @@ app.post("/api/analyze", async (req, res) => {
 
     // 무신사 리뷰 크롤링
     console.log("리뷰 크롤링 시작...");
-    let { product, reviews } = await crawlMusinsaReviews(url);
+    let { product, reviews } = await crawlMusinsa(url);
     if (!reviews || reviews.length === 0) {
       return res.json({
         success: false,
