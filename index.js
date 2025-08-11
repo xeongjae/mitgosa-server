@@ -2,6 +2,8 @@ const express = require("express");
 const cors = require("cors");
 const app = express();
 const crawlMusinsa = require("./src/crawlers/musinsa");
+const crawlTwentyNine = require("./src/crawlers/twentynine");
+const crawlZigzag = require("./src/crawlers/zigzag");
 const { analyzeReviews } = require("./src/analyzers/geminiAnalyzer");
 require("dotenv").config();
 
@@ -17,63 +19,81 @@ app.use(
   })
 );
 
-app.get("/", (req, res) => {
-  res.send("리뷰스캔 서버가 실행 중입니다!");
-});
+function detectPlatform(url) {
+  if (url.includes("musinsa.com")) {
+    return "musinsa";
+  } else if (url.includes("29cm.co.kr")) {
+    return "29cm";
+  } else if (url.includes("zigzag.kr")) {
+    return "zigzag";
+  }
+  return "unknown";
+}
 
-// 무신사 리뷰 크롤링 and Gemini API로 분석
+// 리뷰 크롤링 and Gemini API로 분석
 app.post("/api/analyze", async (req, res) => {
   console.log("분석 요청 들어옴!", req.body);
   try {
     const url = req.body.url;
-    const apiKey = process.env.GEMINI_API_KEY;
-
-    // API 키 확인
-    if (!apiKey) {
-      return res.status(500).json({
-        success: false,
-        message:
-          "GEMINI_API_KEY가 설정되지 않았습니다. .env 파일을 확인해주세요.",
-      });
-    }
-
-    // URL 유효성 검사
     if (!url) {
-      return res.status(400).json({ success: false, message: "url 수신 실패" });
+      return res.status(400).json({ error: "URL이 필요합니다." });
     }
 
-    // 무신사 리뷰 크롤링
-    console.log("리뷰 크롤링 시작...");
-    let { product, reviews } = await crawlMusinsa(url);
-    if (!reviews || reviews.length === 0) {
-      return res.json({
-        success: false,
-        message: "분석할 리뷰 데이터가 없습니다.",
-        product,
-      });
+    const platform = detectPlatform(url);
+    console.log(`감지된 플랫폼: ${platform}`);
+
+    let crawlResult;
+
+    switch (platform) {
+      case "musinsa":
+        crawlResult = await crawlMusinsa(url);
+        break;
+      case "29cm":
+        crawlResult = await crawlTwentyNine(url);
+        break;
+      case "zigzag":
+        crawlResult = await crawlZigzag(url);
+        break;
+      default:
+        return res.status(400).json({
+          error:
+            "지원하지 않는 쇼핑몰입니다. 무신사, 29cm, 지그재그만 지원합니다.",
+        });
     }
-    console.log(`${reviews.length}개의 리뷰를 찾았습니다.`);
+
+    if (!crawlResult.reviews || crawlResult.reviews.length === 0) {
+      return res.status(404).json({ error: "분석할 리뷰 데이터가 없습니다." });
+    }
+
+    console.log(`${crawlResult.reviews.length}개 리뷰 수집 완료`);
 
     // Gemini API로 리뷰 분석
-    console.log("리뷰 분석 시작...");
-    const analysis = await analyzeReviews(reviews, apiKey);
+    const analysisResult = await analyzeReviews(crawlResult.reviews);
 
-    // 결과 반환
+    // 분석 실패 시 에러 응답
+    if (!analysisResult.success) {
+      return res.status(500).json({
+        error: analysisResult.error || "분석 중 오류가 발생했습니다.",
+        details: analysisResult.details || {},
+      });
+    }
+
     res.json({
-      ...analysis,
-      product,
+      success: true,
+      product: crawlResult.product,
+      reviews: crawlResult.reviews,
+      data: analysisResult.data, // 프론트엔드가 기대하는 data 필드
+      platform, // 어떤 플랫폼에서 크롤링했는지 정보 추가
     });
   } catch (error) {
-    console.error("분석 중 에러 발생:", error);
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
+    console.error("분석 에러:", error);
+    res
+      .status(500)
+      .json({ error: error.message || "분석 중 오류가 발생했습니다." });
   }
 });
 
-const PORT = 4000;
-
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`서버 실행 중: http://localhost:${PORT}`);
+  console.log(`서버가 포트 ${PORT}에서 실행 중입니다.`);
 });
