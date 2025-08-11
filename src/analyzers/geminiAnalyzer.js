@@ -1,12 +1,21 @@
 const axios = require("axios");
+require("dotenv").config();
 
 /**
  * 리뷰 데이터를 분석하여 장점, 단점, 전반적인 평가를 JSON으로 반환하는 함수
- * @param {string[]} reviews - 무신사에서 크롤링한 리뷰 텍스트 배열
- * @param {string} apiKey - Gemini API 키
+ * @param {string[]} reviews
  * @returns {Promise<Object>} - 분석 결과 JSON 객체
  */
-async function analyzeReviews(reviews, apiKey) {
+async function analyzeReviews(reviews) {
+  const apiKey = process.env.GEMINI_API_KEY;
+
+  if (!apiKey) {
+    return {
+      success: false,
+      error: "GEMINI_API_KEY가 환경변수에 설정되지 않았습니다.",
+    };
+  }
+
   const API_URL =
     "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
 
