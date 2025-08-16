@@ -9,6 +9,9 @@ const crawlZigzag = require("./src/crawlers/zigzag");
 const { analyzeReviews } = require("./src/analyzers/geminiAnalyzer");
 require("dotenv").config();
 
+// 프록시 환경에서 실제 IP 인식을 위한 설정
+app.set("trust proxy", true);
+
 app.use(express.json());
 
 app.use(
@@ -49,11 +52,16 @@ app.use((req, res, next) => {
     const stats = loadStats();
     const now = new Date();
     const today = now.toISOString().split("T")[0];
-    const clientIP =
-      req.headers["x-forwarded-for"] ||
-      req.socket.remoteAddress ||
-      req.ip ||
-      "unknown";
+    // 더 안정적인 IP 추출
+    let clientIP = req.ip || req.socket.remoteAddress || "unknown";
+
+    // x-forwarded-for 헤더 처리 (첫 번째 IP만 사용)
+    if (req.headers["x-forwarded-for"]) {
+      const forwardedIPs = req.headers["x-forwarded-for"].split(",");
+      clientIP = forwardedIPs[0].trim();
+    }
+
+    console.log(`클라이언트 IP: ${clientIP}`);
 
     // 오늘 날짜 초기화
     if (!stats.dailyStats[today]) {
