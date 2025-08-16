@@ -4,7 +4,7 @@ require("dotenv").config();
 /**
  * 리뷰 데이터를 분석하여 장점, 단점, 전반적인 평가를 JSON으로 반환하는 함수
  * @param {string[]} reviews
- * @returns {Promise<Object>} - 분석 결과 JSON 객체
+ * @returns {Promise<Object>}
  */
 async function analyzeReviews(reviews) {
   const apiKey = process.env.GEMINI_API_KEY;
