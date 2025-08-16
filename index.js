@@ -51,7 +51,9 @@ app.use((req, res, next) => {
   try {
     const stats = loadStats();
     const now = new Date();
-    const today = now.toISOString().split("T")[0];
+    // 한국 시간 기준 (UTC+9)
+    const koreaTime = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+    const today = koreaTime.toISOString().split("T")[0];
     // 더 안정적인 IP 추출
     let clientIP = req.ip || req.socket.remoteAddress || "unknown";
 
@@ -165,7 +167,9 @@ app.post("/api/analyze", async (req, res) => {
     // 분석 성공 시 통계 업데이트
     try {
       const stats = loadStats();
-      const today = new Date().toISOString().split("T")[0];
+      // 한국 시간 기준 (UTC+9)
+      const koreaTime = new Date(new Date().getTime() + 9 * 60 * 60 * 1000);
+      const today = koreaTime.toISOString().split("T")[0];
 
       // 총 분석 횟수 증가
       stats.totalAnalysis++;
@@ -206,7 +210,9 @@ app.post("/api/analyze", async (req, res) => {
 app.get("/api/stats", (req, res) => {
   try {
     const stats = loadStats();
-    const today = new Date().toISOString().split("T")[0];
+    // 한국 시간 기준 (UTC+9)
+    const koreaTime = new Date(new Date().getTime() + 9 * 60 * 60 * 1000);
+    const today = koreaTime.toISOString().split("T")[0];
 
     res.json({
       totalVisitors: stats.totalVisitors,
