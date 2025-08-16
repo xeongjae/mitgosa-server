@@ -1,5 +1,7 @@
 const express = require("express");
 const cors = require("cors");
+const fs = require("fs");
+const path = require("path");
 const app = express();
 const crawlMusinsa = require("./src/crawlers/musinsa");
 const crawlTwentyNine = require("./src/crawlers/twentynine");
@@ -18,6 +20,80 @@ app.use(
     credentials: true,
   })
 );
+
+// 통계 파일 경로
+const statsFile = path.join(__dirname, "stats.json");
+
+// 통계 데이터 로드
+function loadStats() {
+  try {
+    return JSON.parse(fs.readFileSync(statsFile, "utf8"));
+  } catch {
+    return {
+      totalVisitors: 0,
+      totalAnalysis: 0,
+      dailyStats: {},
+      visitedIPs: {}, // IP별 마지막 방문시간 저장
+    };
+  }
+}
+
+// 통계 데이터 저장
+function saveStats(stats) {
+  fs.writeFileSync(statsFile, JSON.stringify(stats, null, 2));
+}
+
+// 방문자 통계 추적 미들웨어 (30분 세션 기반)
+app.use((req, res, next) => {
+  try {
+    const stats = loadStats();
+    const now = new Date();
+    const today = now.toISOString().split("T")[0];
+    const clientIP =
+      req.headers["x-forwarded-for"] ||
+      req.socket.remoteAddress ||
+      req.ip ||
+      "unknown";
+
+    // 오늘 날짜 초기화
+    if (!stats.dailyStats[today]) {
+      stats.dailyStats[today] = {
+        visitors: 0,
+        analysis: 0,
+      };
+    }
+
+    // 세션 타임아웃 체크 (30분 = 30 * 60 * 1000ms)
+    const SESSION_TIMEOUT = 30 * 60 * 1000;
+
+    // visitedIPs가 객체인지 확인하고 초기화
+    if (!stats.visitedIPs || typeof stats.visitedIPs !== "object") {
+      stats.visitedIPs = {};
+    }
+
+    const lastVisit = stats.visitedIPs[clientIP];
+    const isNewSession =
+      !lastVisit ||
+      now.getTime() - new Date(lastVisit).getTime() > SESSION_TIMEOUT;
+
+    // 새로운 세션인 경우 방문자로 카운트
+    if (isNewSession) {
+      stats.totalVisitors++;
+      stats.dailyStats[today].visitors++;
+      stats.visitedIPs[clientIP] = now.toISOString();
+
+      console.log(
+        `새로운 방문자: ${clientIP} (총 ${stats.totalVisitors}명, 오늘 ${stats.dailyStats[today].visitors}명)`
+      );
+      saveStats(stats);
+    }
+
+    next();
+  } catch (error) {
+    console.error("통계 처리 오류:", error);
+    next(); // 통계 오류가 있어도 계속 진행
+  }
+});
 
 function detectPlatform(url) {
   if (url.includes("musinsa.com")) {
@@ -78,6 +154,31 @@ app.post("/api/analyze", async (req, res) => {
       });
     }
 
+    // 분석 성공 시 통계 업데이트
+    try {
+      const stats = loadStats();
+      const today = new Date().toISOString().split("T")[0];
+
+      // 총 분석 횟수 증가
+      stats.totalAnalysis++;
+
+      // 오늘 분석 횟수 증가
+      if (!stats.dailyStats[today]) {
+        stats.dailyStats[today] = {
+          visitors: 0,
+          analysis: 0,
+        };
+      }
+      stats.dailyStats[today].analysis++;
+
+      console.log(
+        `분석 완료! 총 ${stats.totalAnalysis}번째 분석, 오늘 ${stats.dailyStats[today].analysis}번째`
+      );
+      saveStats(stats);
+    } catch (error) {
+      console.error("분석 통계 업데이트 오류:", error);
+    }
+
     res.json({
       success: true,
       product: crawlResult.product,
@@ -90,6 +191,27 @@ app.post("/api/analyze", async (req, res) => {
     res
       .status(500)
       .json({ error: error.message || "분석 중 오류가 발생했습니다." });
+  }
+});
+
+// 통계 조회 API
+app.get("/api/stats", (req, res) => {
+  try {
+    const stats = loadStats();
+    const today = new Date().toISOString().split("T")[0];
+
+    res.json({
+      totalVisitors: stats.totalVisitors,
+      totalAnalysis: stats.totalAnalysis,
+      todayVisitors: stats.dailyStats[today]?.visitors || 0,
+      todayAnalysis: stats.dailyStats[today]?.analysis || 0,
+    });
+  } catch (error) {
+    console.error("통계 조회 오류:", error);
+    res.status(500).json({
+      error: "통계를 불러올 수 없습니다.",
+      details: error.message,
+    });
   }
 });
 
