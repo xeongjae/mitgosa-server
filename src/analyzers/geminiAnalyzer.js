@@ -16,7 +16,7 @@ async function analyzeReviews(reviews) {
     };
   }
 
-  const MODEL_ID = "gemini-2.5-flash-lite";
+  const MODEL_ID = "gemini-2.5-flash";
   const API_URL = `https://generativelanguage.googleapis.com/v1/models/${MODEL_ID}:generateContent`;
 
   try {
